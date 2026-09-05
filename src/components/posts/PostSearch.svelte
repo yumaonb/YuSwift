@@ -163,9 +163,6 @@
         </svg>
       </button>
     {/if}
-    {#if kw.length === 0}
-      <kbd class="post-search-kbd" aria-hidden="true">/</kbd>
-    {/if}
   </div>
 
   {#if isOpen}
@@ -274,28 +271,6 @@
   .post-search-clear-icon {
     width: 10px;
     height: 10px;
-  }
-
-  .post-search-kbd {
-    flex-shrink: 0;
-    min-width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.4);
-    font-family: inherit;
-    font-size: 0.7rem;
-    line-height: 1;
-  }
-
-  @media (max-width: 768px) {
-    .post-search-kbd {
-      display: none;
-    }
   }
 
   .post-search-dropdown {
