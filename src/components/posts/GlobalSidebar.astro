@@ -4,7 +4,6 @@
 import AuthorCard from '../widgets/AuthorCard.astro';
 import PostCategoryTree from './PostCategoryTree.astro';
 import PostTagCloud from './PostTagCloud.astro';
-import PostsFilterModal from './PostsFilterModal.svelte';
 import {
   buildCategoryMeta,
   buildAllPosts,
@@ -77,9 +76,6 @@ for (let i = catSegments.length; i > 0; i--) {
     )}
   </div>
 </aside>
-
-<!-- 放在 aside 之外：移动端侧边栏整体隐藏时抽屉仍可用 -->
-<PostsFilterModal client:load />
 
 <!-- 移动端面包屑：桌面端由侧边栏内的面包屑行展示 -->
 <div class="mobile-breadcrumb"><slot name="top" /></div>

@@ -15,6 +15,7 @@ import BackToComments from "../components/posts/BackToComments.svelte";
 import ReadingProgress from "../components/layout/ReadingProgress.svelte";
 import TocModal from "../components/posts/TocModal.svelte";
 import PostsFilterFab from "../components/posts/PostsFilterFab.svelte";
+import PostsFilterModal from "../components/posts/PostsFilterModal.svelte";
 import CustomScrollbar from "../components/layout/CustomScrollbar.astro";
 import { site } from "../data/site";
 
@@ -78,6 +79,7 @@ const bgAspectStyle = `@media (min-aspect-ratio: ${bgImageRaw.width}/${bgImageRa
       <BackToComments client:load />
       <BackToBottom client:load />
     </div>
+    <PostsFilterModal client:load />
     <CustomScrollbar />
     <script is:inline data-swup-ignore-script>
       // swup 切页联动：点击链接即收回侧边按钮并挂起显示判定；

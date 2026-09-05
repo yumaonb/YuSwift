@@ -9,6 +9,15 @@
   let sidebar = null;
   let modalEl;
 
+  /** 关闭抽屉并将 sidebar-filter 还原到侧边栏 */
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    document.body.style.overflow = '';
+    if (sidebar && filterRoot) sidebar.appendChild(filterRoot);
+    lastFocus?.focus?.();
+  }
+
   function open() {
     if (isOpen) return;
     sidebar = document.querySelector('.posts-sidebar');
@@ -26,14 +35,6 @@
     });
   }
 
-  function close() {
-    if (!isOpen) return;
-    isOpen = false;
-    document.body.style.overflow = '';
-    if (sidebar && filterRoot) sidebar.appendChild(filterRoot);
-    lastFocus?.focus?.();
-  }
-
   function onMaskClick(e) {
     if (e.target?.closest?.('[data-pfilter-close]')) { close(); return; }
     if (e.target?.closest?.('.cat-item') || e.target?.closest?.('.chip')) close();
@@ -49,6 +50,10 @@
     const fab = document.getElementById('posts-filter-fab');
     if (fab) fab.addEventListener('click', open);
 
+    // swup 切页时关闭抽屉（组件在 BaseLayout 中，不会被销毁，无需移除 modalEl）
+    function onVisitStart() { close(); }
+    document.addEventListener('swup:visit:start', onVisitStart);
+
     function onEnterDesktop() { if (isOpen) close(); }
     if (typeof window.__onEnterDesktop === 'function') {
       window.__onEnterDesktop(onEnterDesktop);
@@ -60,6 +65,7 @@
 
     return () => {
       fab?.removeEventListener('click', open);
+      document.removeEventListener('swup:visit:start', onVisitStart);
     };
   });
 </script>
