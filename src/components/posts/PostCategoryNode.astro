@@ -41,17 +41,19 @@ const url = linkMode && categoryUrl ? categoryUrl(node.path) : '';
   </div>
 
   {hasChildren && (
-    <ul class="cat-children">
-      {node.children.map((child) => (
-        <Self
-          node={child}
-          depth={depth + 1}
-          activeCategory={activeCategory}
-          linkMode={linkMode}
-          categoryUrl={categoryUrl}
-        />
-      ))}
-    </ul>
+    <div class="cat-children-wrap">
+      <ul class="cat-children">
+        {node.children.map((child) => (
+          <Self
+            node={child}
+            depth={depth + 1}
+            activeCategory={activeCategory}
+            linkMode={linkMode}
+            categoryUrl={categoryUrl}
+          />
+        ))}
+      </ul>
+    </div>
   )}
 </li>
 
@@ -93,7 +95,7 @@ const url = linkMode && categoryUrl ? categoryUrl(node.path) : '';
   .cat-toggle-icon {
     width: 13px;
     height: 13px;
-    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .cat-node--open > .cat-row .cat-toggle-icon {
@@ -104,20 +106,28 @@ const url = linkMode && categoryUrl ? categoryUrl(node.path) : '';
     color: rgba(255, 255, 255, 0.85);
   }
 
-  /* 子分类展开动画 */
+  /* 子分类展开动画：grid-template-rows 精确贴合实际高度 */
+  .cat-children-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .cat-node--open > .cat-children-wrap {
+    grid-template-rows: 1fr;
+  }
+
   .cat-children {
     margin: 0;
     padding: 0;
     list-style: none;
     overflow: hidden;
-    max-height: 0;
+    min-height: 0;
     opacity: 0;
-    transition: max-height 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 0.2s ease;
+    transition: opacity 0.2s ease;
   }
 
-  .cat-node--open > .cat-children {
-    max-height: 500px;
+  .cat-node--open > .cat-children-wrap > .cat-children {
     opacity: 1;
   }
 
