@@ -31,12 +31,17 @@ const hasToc = headings && headings.length > 0;
 
 <BaseLayout title={title} description={description}>
   <div class="posts-with-sidebar">
-    <GlobalSidebar>
-      <Breadcrumb items={breadcrumbs} slot="top" />
-    </GlobalSidebar>
+    <div class="posts-sidebar-wrap">
+      <GlobalSidebar>
+        <Breadcrumb items={breadcrumbs} slot="top" />
+      </GlobalSidebar>
+    </div>
     <div class="posts-content">
       <div class="post-layout">
         <div class="post-main">
+          <div class="posts-breadcrumb">
+            <Breadcrumb items={breadcrumbs} />
+          </div>
           <article class="post-content glass glass-tall" data-pagefind-body>
             <div class="post-content-inner">
               <slot />
@@ -66,10 +71,14 @@ const hasToc = headings && headings.length > 0;
     min-width: 0;
   }
 
+  .posts-sidebar-wrap {
+    width: 260px;
+    flex-shrink: 0;
+  }
+
   .posts-content {
     flex: 1 1 auto;
     min-width: 0;
-    max-width: 1000px;
   }
 
   .post-layout {
@@ -81,20 +90,19 @@ const hasToc = headings && headings.length > 0;
   .post-main {
     flex: 1;
     min-width: 0;
+    padding-top: 38px;
   }
 
   .post-content {
     border-radius: var(--radius);
   }
 
-  /* 桌面端侧边栏顶部有面包屑行，仅正文下移同高与名片顶对齐；目录列不跟随 */
-  @media (min-width: 769px) {
-    .post-main {
-      padding-top: 38px;
-    }
+  /* 面包屑：桌面端在侧边栏内，移动端在卡片上方显示 */
+  .posts-breadcrumb {
+    display: none;
+    margin-bottom: 16px;
   }
 
-  /* 内边距放在内部包裹层：.glass-tall 的模糊伪元素只铺满容器内容盒 */
   .post-content-inner {
     padding: 36px 40px;
   }
@@ -108,10 +116,17 @@ const hasToc = headings && headings.length > 0;
     scrollbar-width: thin;
   }
 
-  @media (max-width: 768px) {
-    .posts-with-sidebar {
-      gap: 0;
-      flex-wrap: wrap;
+  @media (max-width: 1000px) {
+    .posts-sidebar-wrap {
+      display: none;
+    }
+
+    .posts-breadcrumb {
+      display: block;
+    }
+
+    .post-main {
+      padding-top: 0;
     }
   }
 

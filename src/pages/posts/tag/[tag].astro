@@ -143,6 +143,7 @@ const breadcrumbs = [
   }
   @media (max-width: 768px) {
     .posts-with-sidebar { gap: 0; flex-wrap: wrap; }
+    .posts-with-sidebar > :global(.global-sidebar) { display: none; }
   }
   @media (max-width: 768px) {
     .category-header { flex-direction: column; align-items: stretch; gap: 12px; }
