@@ -30,8 +30,18 @@ import {
 } from '../../lib/category';
 import PostSearch from '../../components/posts/PostSearch.svelte';
 import '../../assets/css/posts-listing.css';
+import path from 'node:path';
+import ImageWrapper from '../../components/misc/ImageWrapper.astro';
 
 const rp = resolveRoutePrefix(import.meta.url);
+
+/**
+ * 从文件路径计算 basePath（用于 ImageWrapper）
+ */
+function getBasePath(filePath: string): string {
+  const clean = filePath.replace(/^.*?content\//, 'content/').replace(/\/[^/]+$/, '');
+  return clean;
+}
 
 // ---- 分类元数据（支持多种配置文件格式） ----
 const categoryJsonFiles = import.meta.glob('../../content/posts/**/index.json', { eager: true });
@@ -180,7 +190,7 @@ if (type === 'post') {
           {catName}<span class="title-count-sep"> — </span><span id="posts-count" class="posts-count">共 {catPosts.length} 篇文章</span>
         </h1>
         <div class="category-header-search">
-          <PostSearch placeholder={`在「${catName}」中搜索…`} categoryPath={buildCategoryUrl(catCategoryPath, categoryMeta, rp)} client:load />
+          <PostSearch placeholder={`在「${catName}」中搜索…`} categoryPath={buildCategoryUrl(catCategoryPath, categoryMeta, rp)} client:idle />
         </div>
       </div>
 
@@ -191,7 +201,8 @@ if (type === 'post') {
             {catPosts.map((post: any, i: number) => (
               <div class="post-card-slot" data-index={i} data-slug={`/${rp}/${post.slug}/`}>
                 <PostCard title={post.frontmatter.title || '无标题'} date={post.frontmatter.date || ''}
-                  description={post.frontmatter.description || ''} image={post.frontmatter.image || ''}
+                  description={post.frontmatter.description || ''} image={post.frontmatter.image || undefined}
+                  basePath={getBasePath(post.filePath)}
                   tags={post.frontmatter.tags || []} pinned={post.frontmatter.pinned || false}
                   url={`/${rp}/${post.slug}/`} category={post.category} />
               </div>
@@ -242,7 +253,7 @@ if (type === 'post') {
           </span>
         )}
       </div>
-      {postFm.image && <div class="post-cover"><img src={postFm.image} alt={postFm.title} /></div>}
+      {postFm.image && <div class="post-cover"><ImageWrapper src={postFm.image} basePath={getBasePath(filePath)} alt={postFm.title} class="w-full" /></div>}
     </header>
     <div class="markdown-body" set:html={postCompiledHtml}></div>
     <Repost title={postFm.title} date={postDateFormatted || postFm.date} />

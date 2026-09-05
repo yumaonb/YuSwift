@@ -129,9 +129,22 @@
     raf = requestAnimationFrame(loop);
     timer = setInterval(tick, 1000);
 
+    // tab 不可见时暂停计时器，节省 CPU
+    function onVisibility() {
+      if (document.hidden) {
+        clearInterval(timer);
+        timer = null;
+      } else if (!timer) {
+        tick();
+        timer = setInterval(tick, 1000);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       clearInterval(timer);
       cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   });
 </script>

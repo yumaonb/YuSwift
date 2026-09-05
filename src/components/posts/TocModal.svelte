@@ -1,6 +1,7 @@
 <!-- TocModal.svelte — 文章目录悬浮按钮 + 抽屉弹窗 -->
 <script>
   import { onMount } from 'svelte';
+  import { subscribeScroll } from '../../assets/js/scroll-manager.js';
 
   let isOpen = $state(false);
   let lastFocus = null;
@@ -92,7 +93,7 @@
     syncAvailability();
     updateVisibility();
 
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const unsub = subscribeScroll(() => onScroll());
 
     // 复用 NavBar 的共享 matchMedia 监听器
     function onEnterDesktop() { if (isOpen) close(); }
@@ -118,7 +119,7 @@
     document.addEventListener('swup:content:replace', onContentReplace);
 
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      unsub();
       document.removeEventListener('swup:visit:start', onVisitStart);
       document.removeEventListener('swup:content:replace', onContentReplace);
       if (settleTimer) clearTimeout(settleTimer);

@@ -1,32 +1,32 @@
 ---
-// PostCard.astro — 文章卡片组件（整个卡片可点击）
+// PostCard.astro — 文章卡片组件（整个卡片可点击），参考 Fuwari 布局
 import { Icon } from 'astro-icon/components';
+import ImageWrapper from '../misc/ImageWrapper.astro';
 
 interface Props {
   title: string;
   date: string;
   description?: string;
   image?: string;
+  basePath?: string;
   tags?: string[];
   pinned?: boolean;
   url: string;
   category?: string;
 }
 
-const { title, date, description, image, tags = [], pinned = false, url, category } = Astro.props;
+const { title, date, description, image, basePath = "/", tags = [], pinned = false, url, category } = Astro.props;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+const hasCover = !!image;
 ---
 
-<a href={url} class="post-card glass">
-  {image && (
-    <div class="post-card-cover">
-      <img src={image} alt={title} loading="lazy" />
-    </div>
-  )}
+<a href={url} class:list={["post-card glass", { "has-cover": hasCover }]} aria-label={title}>
+  <!-- 文本内容区域（左侧） -->
   <div class="post-card-body">
     <div class="post-card-meta">
       {pinned && (
@@ -35,16 +35,20 @@ function formatDate(dateStr: string): string {
         </span>
       )}
       <h3 class="post-card-title">{title}</h3>
+      <Icon name="mdi:chevron-right" class="post-card-chevron" />
     </div>
+
     <div class="post-card-sub">
       <time class="post-card-date" datetime={date}>{formatDate(date)}</time>
       {category && (
         <span class="post-card-category">{category}</span>
       )}
     </div>
+
     {description && (
       <p class="post-card-desc">{description}</p>
     )}
+
     {tags.length > 0 && (
       <div class="post-card-tags">
         {tags.map(tag => (
@@ -53,12 +57,20 @@ function formatDate(dateStr: string): string {
       </div>
     )}
   </div>
+
+  <!-- 封面图片区域（右侧） -->
+  {hasCover && (
+    <div class="post-card-cover">
+      <ImageWrapper src={image!} basePath={basePath} alt={title} class="w-full h-full object-cover" />
+    </div>
+  )}
 </a>
 
 <style>
   .post-card {
     display: flex;
     flex-direction: row;
+    align-items: stretch;
     border-radius: var(--radius);
     overflow: hidden;
     transition: filter 0.3s ease, box-shadow 0.3s ease;
@@ -76,21 +88,7 @@ function formatDate(dateStr: string): string {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
   }
 
-  .post-card-cover {
-    display: block;
-    width: 280px;
-    flex-shrink: 0;
-    aspect-ratio: 16 / 10;
-    overflow: hidden;
-    align-self: stretch;
-  }
-
-  .post-card-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
+  /* 文本区域（左侧，flex: 1 自动撑满） */
   .post-card-body {
     flex: 1;
     min-width: 0;
@@ -104,6 +102,7 @@ function formatDate(dateStr: string): string {
     display: flex;
     align-items: center;
     gap: 6px;
+    position: relative;
   }
 
   .post-card-pin {
@@ -123,6 +122,22 @@ function formatDate(dateStr: string): string {
     color: #fff;
     line-height: 1.4;
     margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .post-card-chevron {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    color: var(--primary, #e4b1f0);
+  }
+
+  .post-card:hover .post-card-chevron {
+    opacity: 1;
+    transform: translateX(-4px);
   }
 
   .post-card-sub {
@@ -170,11 +185,62 @@ function formatDate(dateStr: string): string {
     border-radius: 4px;
   }
 
+  /* 封面图片 — 右侧 flex 区域 */
+  .post-card-cover {
+    flex-shrink: 0;
+    width: 28%;
+    min-width: 160px;
+    max-width: 280px;
+    padding: 12px 12px 12px 0;
+    display: none;
+  }
+
+  .post-card-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+
+  .post-card:hover .post-card-cover img {
+    transform: scale(1.02);
+  }
+
+  .has-cover .post-card-cover {
+    display: block;
+  }
+
   @media (max-width: 768px) {
-    /* 手机端恢复上下结构：封面整宽在上，内容在下 */
-    .post-card { flex-direction: column; }
-    .post-card-cover { width: 100%; aspect-ratio: 16 / 9; }
-    .post-card-body { padding: 16px; }
-    .post-card-title { font-size: 1rem; }
+    /* 手机端：封面整宽在上，文本在下 */
+    .post-card {
+      flex-direction: column;
+    }
+
+    .post-card-cover {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      padding: 0;
+      aspect-ratio: 16 / 9;
+      display: block;
+    }
+
+    .post-card-cover img {
+      border-radius: 0;
+    }
+
+    .post-card-body {
+      padding: 16px;
+    }
+
+    .post-card-title {
+      font-size: 1rem;
+    }
+
+    .post-card-chevron {
+      display: none;
+    }
   }
 </style>

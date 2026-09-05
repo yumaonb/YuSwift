@@ -1,6 +1,7 @@
 <!-- BackToComments.svelte — 到评论按钮 -->
 <script>
   import { onMount } from 'svelte';
+  import { subscribeScroll } from '../../assets/js/scroll-manager.js';
   import Icon from '@iconify/svelte';
 
   let isVisible = $state(false);
@@ -41,9 +42,9 @@
 
   onMount(() => {
     toggleBtn();
-    window.addEventListener('scroll', toggleBtn, { passive: true });
+    const unsub = subscribeScroll(() => toggleBtn());
     return () => {
-      window.removeEventListener('scroll', toggleBtn);
+      unsub();
       if (settleTimer) clearTimeout(settleTimer);
     };
   });

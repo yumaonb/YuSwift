@@ -23,6 +23,14 @@ const allPosts = buildAllPosts(postModules, categoryMeta);
 
 const rp = resolveRoutePrefix(import.meta.url);
 
+/**
+ * 从文件路径计算 basePath（用于 ImageWrapper）
+ */
+function getBasePath(filePath: string): string {
+  const clean = filePath.replace(/^.*?content\//, 'content/').replace(/\/[^/]+$/, '');
+  return clean;
+}
+
 export function getStaticPaths() {
   const categoryMeta = buildCategoryMeta(
     import.meta.glob('../../../content/posts/**/index.json', { eager: true }),
@@ -57,7 +65,7 @@ const breadcrumbs = [
         #{tag}<span class="title-count-sep"> — </span><span id="posts-count" class="posts-count">共 {posts.length} 篇文章</span>
       </h1>
       <div class="category-header-search">
-        <PostSearch placeholder={`在「${tag}」标签中搜索…`} filterUrls={posts.map(p => `/${rp}/${p.slug}/`)} client:load />
+        <PostSearch placeholder={`在「${tag}」标签中搜索…`} filterUrls={posts.map(p => `/${rp}/${p.slug}/`)} client:idle />
       </div>
     </div>
 
@@ -71,7 +79,8 @@ const breadcrumbs = [
                 title={post.title}
                 date={post.date}
                 description={post.description}
-                image={post.image}
+                image={post.image || undefined}
+                basePath={getBasePath(post.filePath)}
                 tags={post.tags}
                 pinned={post.pinned}
                 url={`/${rp}/${post.slug}/`}

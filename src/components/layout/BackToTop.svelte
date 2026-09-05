@@ -1,22 +1,19 @@
 <!-- BackToTop.svelte — 返回顶部按钮 -->
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
+  import { subscribeScroll } from '../../assets/js/scroll-manager.js';
   import Icon from '@iconify/svelte';
 
   let isVisible = $state(false);
-
-  function toggleBtn() {
-    isVisible = window.scrollY > 100;
-  }
 
   function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   onMount(() => {
-    toggleBtn();
-    window.addEventListener('scroll', toggleBtn, { passive: true });
-    return () => window.removeEventListener('scroll', toggleBtn);
+    isVisible = window.scrollY > 100;
+    const unsub = subscribeScroll((y) => { isVisible = y > 100; });
+    return unsub;
   });
 </script>
 

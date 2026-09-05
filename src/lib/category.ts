@@ -189,6 +189,8 @@ export interface PostItem {
   category: string;
   /** 分类显示名称，如 "前端" */
   categoryDisplayName: string;
+  /** 原始文件路径（用于图片解析） */
+  filePath: string;
 }
 
 // ---- Frontmatter 分类提取 ----
@@ -553,8 +555,8 @@ export function getCategoryPosts(
   allPostModules: Record<string, any>,
   targetCategoryPath: string[],
   categoryMeta: Record<string, CategoryMeta>,
-): { slug: string; frontmatter: any; category: string }[] {
-  const result: { slug: string; frontmatter: any; category: string }[] = [];
+): { slug: string; frontmatter: any; category: string; filePath: string }[] {
+  const result: { slug: string; frontmatter: any; category: string; filePath: string }[] = [];
 
   for (const [fp, mod] of Object.entries(allPostModules)) {
     const clean = stripContentRoot(fp as string);
@@ -570,6 +572,7 @@ export function getCategoryPosts(
         slug: clean,
         frontmatter: fm,
         category: articleCats.leaf ? articleCats.leaf.path.join("/") : clean.split("/").slice(0, -1).join("/"),
+        filePath: fp,
       });
     }
   }
@@ -606,6 +609,7 @@ export function buildAllPosts(
       pinned: fm.pinned || false,
       category: articleCats.leaf ? articleCats.leaf.path.join("/") : "",
       categoryDisplayName: articleCats.leaf ? articleCats.leaf.name : "",
+      filePath: filePath,
     });
   }
 

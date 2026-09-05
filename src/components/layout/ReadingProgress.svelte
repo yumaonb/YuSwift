@@ -5,6 +5,7 @@
   let isVisible = $state(false);
   let percent = $state(0);
   let dashOffset = $state(100);
+  let rafId = 0;
 
   function update() {
     isVisible = window.scrollY > 100;
@@ -14,13 +15,23 @@
     dashOffset = 100 * (1 - p);
   }
 
+  function onScroll() {
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        update();
+      });
+    }
+  }
+
   onMount(() => {
     update();
-    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', update, { passive: true });
     return () => {
-      window.removeEventListener('scroll', update);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', update);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   });
 </script>
