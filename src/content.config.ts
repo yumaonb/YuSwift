@@ -1,27 +1,26 @@
 // content.config.ts — 内容集合定义
+// 只做基础元数据校验与默认值；分类完全由文章所在目录结构决定，
+// 不再适配任何其他博客的 frontmatter 分类字段（categories/category/分类 等一律忽略）。
 import { defineCollection, z } from 'astro:content';
 
 const posts = defineCollection({
   type: 'content',
-  schema: z.object({
-    title: z.string(),
-    date: z.date(),
-    description: z.string().optional(),
-    image: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    pinned: z.boolean().optional(),
-    // 分类：支持多种格式
-    // - 字符串数组: ["编程", "Python"]
-    // - 嵌套数组: [["编程", "Python"]]
-    // - 对象数组: [{name: "Python", parent: "编程"}]
-    // - 字符串: "编程/Python" 或 "编程 > Python" 或 "编程"
-    categories: z.union([
-      z.array(z.union([z.string(), z.array(z.string()), z.object({ name: z.string(), parent: z.string().optional() })])),
-      z.string(),
-    ]).optional(),
-    category: z.union([z.string(), z.array(z.string())]).optional(),
-    '分类': z.union([z.string(), z.array(z.string())]).optional(),
-  }),
+  schema: z
+    .object({
+      title: z.string().optional(),
+      date: z.coerce.date().optional(),
+      description: z.string().optional(),
+      image: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      pinned: z.boolean().optional(),
+    })
+    .passthrough()
+    .transform((fm) => {
+      if (fm.title == null) fm.title = '无标题';
+      if (fm.tags == null) fm.tags = [];
+      if (fm.pinned == null) fm.pinned = false;
+      return fm;
+    }),
 });
 
 export const collections = { posts };

@@ -24,7 +24,7 @@ import Markdown from '../components/layout/Markdown.astro';
           <p class="intro-motto text-motto">{motto}</p>
         </div>
       </div>
-      <DaysCounter client:visible />
+      <DaysCounter client:load />
       <TechStack />
       <div class="intro-text glass">
         <Markdown>

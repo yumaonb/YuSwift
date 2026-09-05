@@ -1,60 +1,37 @@
 ---
-// GlobalSidebar.astro — 文章区左侧边栏
-// 用法：<GlobalSidebar />
+// GlobalSidebar.astro — 文章区左侧边栏（数据由页面通过 props 注入，自身不再读文章）
+// 用法：<GlobalSidebar tree={data.categoryTree} tags={data.tags} activeTag={...} />
 import AuthorCard from '../widgets/AuthorCard.astro';
 import PostCategoryTree from './PostCategoryTree.astro';
 import PostTagCloud from './PostTagCloud.astro';
-import {
-  buildCategoryMeta,
-  buildAllPosts,
-  buildCategoryTree,
-  buildCategoryUrl,
-  resolveRoutePrefix,
-} from '../../lib/category';
+import { postRoute, type CategoryTreeNode } from '../../lib/category';
 
 interface Props {
+  /** 分类树（来自 loadBlogData()） */
+  tree?: CategoryTreeNode[];
+  /** 标签计数（来自 loadBlogData()） */
+  tags?: { name: string; count: number }[];
+  /** 当前所在标签（高亮用，可选） */
   activeTag?: string;
 }
-const { activeTag = '' } = Astro.props;
 
-const rp = resolveRoutePrefix(import.meta.url);
+const { tree = [], tags = [], activeTag = '' } = Astro.props;
 
-const categoryMeta = buildCategoryMeta(
-  import.meta.glob('../../content/posts/**/index.json', { eager: true }),
-  import.meta.glob('../../content/posts/**/index.md', { eager: true }),
-  import.meta.glob('../../content/posts/**/{_category.yml,_category.yaml,.category.yml}', { eager: true }),
-  import.meta.glob('../../content/posts/**/_category.toml', { eager: true }),
-);
-const posts = buildAllPosts(
-  import.meta.glob('../../content/posts/**/*.md', { eager: true }),
-  categoryMeta,
-);
+const categoryTree = tree;
 
-const categoryTree = buildCategoryTree(posts, categoryMeta);
-
-const tagCounts = new Map<string, number>();
-for (const post of posts) {
-  for (const tag of post.tags) tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-}
-const tags = [...tagCounts.entries()]
-  .map(([name, count]) => ({ name, count }))
-  .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'zh'));
-
-const catUrl = (path: string) => buildCategoryUrl(path.split('/'), categoryMeta, rp);
-const tagUrl = (name: string) => `/${rp}/tag/${encodeURIComponent(name)}/`;
+const catUrl = (path: string) => `/${[postRoute, ...path.split('/')].join('/')}/`;
+const tagUrl = (name: string) => `/${postRoute}/tag/${encodeURIComponent(name)}/`;
 
 // ---- 当前页对应的分类（用于高亮 + 自动展开祖先） ----
-// 收集分类树中全部分类路径
+// 收集分类树中全部分类路径，从 URL 解析出能匹配到分类的最长前缀
 const allCatPaths = new Set<string>();
-const collect = (nodes: ReturnType<typeof buildCategoryTree>) => {
+const collect = (nodes: CategoryTreeNode[]) => {
   for (const n of nodes) { allCatPaths.add(n.path); collect(n.children); }
 };
 collect(categoryTree);
 
-// 从 URL 解析出 /{rp}/ 之后的路径段，取能匹配到分类的最长前缀
-// 文章页（末段是文件名）→ 匹配到其所属分类；分类页 → 匹配到自身
 const segments = Astro.url.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
-const rpIdx = segments.indexOf(rp);
+const rpIdx = segments.indexOf(postRoute);
 const catSegments = rpIdx >= 0 ? segments.slice(rpIdx + 1) : segments;
 let activeCategory = '';
 for (let i = catSegments.length; i > 0; i--) {
@@ -79,7 +56,6 @@ for (let i = catSegments.length; i > 0; i--) {
 
 <style>
   .global-sidebar {
-    width: 260px;
     width: 260px;
     flex-shrink: 0;
     /* 拉伸到与内容列同高：让内部的 .sidebar-filter 有滚动行程，sticky 才能生效 */

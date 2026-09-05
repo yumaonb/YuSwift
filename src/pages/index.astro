@@ -44,12 +44,12 @@ import { nickname, motto, intro, socialLinks } from '../data/profile';
     <div class="right-col">
       <!-- 实时时钟 -->
       <div class="island-slot glass">
-        <Clock client:media="(min-width: 768px)" />
+        <Clock client:load />
       </div>
 
       <!-- 入坑全栈时间、开发经验、项目数量 -->
       <div class="stats-row">
-        <DaysCounter client:media="(min-width: 768px)" />
+        <DaysCounter client:load />
       </div>
 
       <!-- 随机一言 -->

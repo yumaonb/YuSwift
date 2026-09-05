@@ -1,186 +1,87 @@
 ﻿---
-// [...slug].astro — 文章详情页 & 分类列表页
+// [...slug].astro — 文章详情页 & 分类列表页（基于 astro:content 集合）
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostsLayout from '../../layouts/PostsLayout.astro';
 import GlobalSidebar from '../../components/posts/GlobalSidebar.astro';
 import PostCard from '../../components/posts/PostCard.astro';
-import Breadcrumb from '../../components/posts/Breadcrumb.astro';
 import Repost from '../../components/posts/Repost.astro';
 import PostNav from '../../components/posts/PostNav.astro';
 import Comments from '../../components/widgets/Comments.astro';
-import { Icon } from 'astro-icon/components';
-import { nickname } from '../../data/profile';
-import '../../assets/css/markdown.css';
-import {
-  type PostModule,
-  buildCategoryMeta,
-  extractCategoriesFromFrontmatter,
-  extractCategoryFromSlug,
-  isCategoryPath,
-  getCategoryPosts,
-  getCategoryDisplayName,
-  buildCategoryBreadcrumbs,
-  buildPostBreadcrumbs,
-  buildArticleCategories,
-  buildCategoryUrl,
-  stripContentRoot,
-  collectAllCategoryPaths,
-  resolveRoutePrefix,
-  formatDate,
-} from '../../lib/category';
 import PostSearch from '../../components/posts/PostSearch.svelte';
-import '../../assets/css/posts-listing.css';
-import path from 'node:path';
 import ImageWrapper from '../../components/posts/ImageWrapper.astro';
+import { Icon } from 'astro-icon/components';
+import { loadBlogData, renderPost, postBreadcrumbs } from '../../lib/posts-data';
+import { postRoute, buildCategoryUrl, postMatchesCategory } from '../../lib/category';
+import '../../assets/css/markdown.css';
+import '../../assets/css/posts-listing.css';
 
-const rp = resolveRoutePrefix(import.meta.url);
+const data = await loadBlogData();
 
-/**
- * 从文件路径计算 basePath（用于 ImageWrapper）
- */
-function getBasePath(filePath: string): string {
-  const clean = filePath.replace(/^.*?content\//, 'content/').replace(/\/[^/]+$/, '');
-  return clean;
-}
+export async function getStaticPaths() {
+  const d = await loadBlogData();
+  const routes: { params: { slug: string }; props: { type: 'post' | 'category'; slug?: string; category?: string } }[] = [];
+  const seen = new Set<string>();
 
-// ---- 分类元数据（支持多种配置文件格式） ----
-const categoryJsonFiles = import.meta.glob('../../content/posts/**/index.json', { eager: true });
-const categoryMdFiles = import.meta.glob('../../content/posts/**/index.md', { eager: true });
-const categoryYamlFiles = import.meta.glob('../../content/posts/**/{_category.yml,_category.yaml,.category.yml}', { eager: true });
-const categoryTomlFiles = import.meta.glob('../../content/posts/**/_category.toml', { eager: true });
-const categoryMeta = buildCategoryMeta(categoryJsonFiles, categoryMdFiles, categoryYamlFiles, categoryTomlFiles);
-
-// ---- getStaticPaths ----
-export function getStaticPaths() {
-  const postModules = import.meta.glob('../../content/posts/**/*.md', { eager: true });
-  const cj = import.meta.glob('../../content/posts/**/index.json', { eager: true });
-  const cm = import.meta.glob('../../content/posts/**/index.md', { eager: true });
-  const cy = import.meta.glob('../../content/posts/**/{_category.yml,_category.yaml,.category.yml}', { eager: true });
-  const ct = import.meta.glob('../../content/posts/**/_category.toml', { eager: true });
-  const catMeta = buildCategoryMeta(cj, cm, cy, ct);
-
-  const paths: { params: { slug: string }; props: any }[] = [];
-
-  for (const [filePath] of Object.entries(postModules)) {
-    const path = stripContentRoot(filePath);
-    if (isCategoryPath(path)) continue;
-    paths.push({ params: { slug: path }, props: { type: 'post', filePath, slug: path } });
+  // 文章路由：posts 集合的每个条目
+  for (const p of d.posts) {
+    seen.add(p.slug);
+    routes.push({ params: { slug: p.slug }, props: { type: 'post', slug: p.slug } });
   }
 
-  for (const catPath of Object.keys(catMeta)) {
-    paths.push({ params: { slug: catPath }, props: { type: 'category', category: catPath } });
+  // 分类路由：分类描述文件 + 每篇文章的目录祖先 + frontmatter 分类祖先
+  const addCategory = (path: string) => {
+    if (!path || seen.has(path)) return;
+    seen.add(path);
+    routes.push({ params: { slug: path }, props: { type: 'category', category: path } });
+  };
+
+  // 分类路由：分类目录（index.json）+ 每篇文章所在目录的祖先目录
+  for (const key of Object.keys(d.meta)) addCategory(key);
+  for (const p of d.posts) {
+    const parts = p.category.split('/').filter(Boolean);
+    for (let i = 1; i <= parts.length; i++) addCategory(parts.slice(0, i).join('/'));
   }
 
-  // 从文章 frontmatter 的 categories 中也收集分类路径，生成路由
-  const fmCategoryPaths = collectAllCategoryPaths(postModules);
-  for (const catPath of fmCategoryPaths) {
-    if (!catMeta[catPath]) {
-      paths.push({ params: { slug: catPath }, props: { type: 'category', category: catPath } });
-    }
-  }
-
-  // 从文章的目录结构中收集隐式分类路径，生成路由（无 index.json / frontmatter 的兜底）
-  const existingSlugs = new Set(paths.map(p => p.params.slug));
-  for (const [filePath] of Object.entries(postModules)) {
-    const path = stripContentRoot(filePath);
-    if (isCategoryPath(path)) continue;
-    const dirCategories = extractCategoryFromSlug(path);
-    for (let i = 1; i <= dirCategories.length; i++) {
-      const catPath = dirCategories.slice(0, i).join('/');
-      if (!existingSlugs.has(catPath)) {
-        existingSlugs.add(catPath);
-        paths.push({ params: { slug: catPath }, props: { type: 'category', category: catPath } });
-      }
-    }
-  }
-
-  return paths;
+  return routes;
 }
 
 const { type } = Astro.props;
 
-// ---- 分类页面数据 ----
-let catCategoryPath: string[] = [];
-let catName = '';
-let catDesc = '';
-let catPosts: { slug: string; frontmatter: any; category: string }[] = [];
-let catBreadcrumbs: { label: string; href?: string }[] = [];
-
-if (type === 'category') {
-  catCategoryPath = (Astro.props.category as string).split('/');
-  const postModules = import.meta.glob('../../content/posts/**/*.md', { eager: true });
-  catPosts = getCategoryPosts(postModules, catCategoryPath, categoryMeta);
-
-  const metaKey = catCategoryPath.join('/');
-  const meta = categoryMeta[metaKey] || { name: catCategoryPath[catCategoryPath.length - 1] };
-  catName = meta.name || catCategoryPath[catCategoryPath.length - 1] || metaKey;
-  catDesc = meta.description || '';
-  catBreadcrumbs = buildCategoryBreadcrumbs(catCategoryPath, categoryMeta, rp);
-}
-
-// ---- 文章页面数据 ----
-let postFm: any = {};
-let postCompiledHtml = '';
-let postHeadings: { depth: number; slug: string; text: string }[] = [];
-let postCategoryPath: string[] = [];
-let postCategoryName = '';
-let postBreadcrumbs: { label: string; href?: string }[] = [];
-let postDateFormatted = '';
+// ==================== 文章页 ====================
+let post = undefined as (typeof data.posts)[number] | undefined;
+let entry = undefined as (typeof data.entries)[number] | undefined;
+let PostContent: any = undefined;
+let headings: { depth: number; slug: string; text: string }[] = [];
 let prevPost: { title: string; url: string } | null = null;
 let nextPost: { title: string; url: string } | null = null;
-let filePath = '';
-let slug = '';
 
 if (type === 'post') {
-  ({ filePath, slug } = Astro.props);
-  const allPosts = import.meta.glob<PostModule>('../../content/posts/**/*.md', { eager: true });
-  const post = allPosts[filePath];
+  const slug = Astro.props.slug as string;
+  post = data.posts.find((p) => p.slug === slug);
+  entry = data.entries.find((e) => e.id === slug);
 
-  if (post) {
-    postFm = post.frontmatter;
-    postCompiledHtml = post.compiledContent();
+  if (post && entry) {
+    const rendered = await renderPost(entry);
+    PostContent = rendered.Content;
+    headings = rendered.headings.filter((h) => h.depth >= 1 && h.depth <= 3);
 
-    const rawHeadings = post.getHeadings();
-    for (const h of rawHeadings) {
-      if (h.depth >= 1 && h.depth <= 3) {
-        postHeadings.push({ depth: h.depth, slug: h.slug, text: h.text });
-      }
-    }
-
-    // 分类提取：frontmatter 优先，目录结构兜底
-    const fmCategories = extractCategoriesFromFrontmatter(postFm);
-    const dirCategories = extractCategoryFromSlug(slug);
-    const articleCats = buildArticleCategories(fmCategories, dirCategories, categoryMeta);
-
-    postCategoryPath = articleCats.leaf ? articleCats.leaf.path : dirCategories;
-    postCategoryName = articleCats.leaf ? articleCats.leaf.name : '';
-    postBreadcrumbs = buildPostBreadcrumbs(postCategoryPath, postFm.title, categoryMeta, rp);
-
-    if (postFm.date) {
-      postDateFormatted = formatDate(postFm.date);
-    }
-
-    // 上一篇/下一篇：按日期降序排列，上一篇为较新的文章，下一篇为较旧的文章
-    const sortedPosts = Object.entries(allPosts)
-      .filter(([fp, mod]) => {
-        const clean = stripContentRoot(fp);
-        return !isCategoryPath(clean) && mod.frontmatter?.date;
-      })
-      .map(([fp, mod]) => ({
-        slug: stripContentRoot(fp),
-        title: (mod as any).frontmatter.title || '无标题',
-        date: (mod as any).frontmatter.date,
-      }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const idx = sortedPosts.findIndex((p) => p.slug === slug);
-    if (idx > 0) {
-      prevPost = { title: sortedPosts[idx - 1].title, url: `/${rp}/${sortedPosts[idx - 1].slug}/` };
-    }
-    if (idx >= 0 && idx < sortedPosts.length - 1) {
-      nextPost = { title: sortedPosts[idx + 1].title, url: `/${rp}/${sortedPosts[idx + 1].slug}/` };
-    }
+    const idx = data.posts.findIndex((p) => p.slug === slug);
+    if (idx > 0) prevPost = { title: data.posts[idx - 1].title, url: data.posts[idx - 1].url };
+    if (idx >= 0 && idx < data.posts.length - 1) nextPost = { title: data.posts[idx + 1].title, url: data.posts[idx + 1].url };
   }
+}
+
+// ==================== 分类页 ====================
+let catPath: string[] = [];
+let catName = '';
+let catPosts = [] as typeof data.posts;
+
+if (type === 'category') {
+  catPath = (Astro.props.category as string).split('/');
+  const metaKey = catPath.join('/');
+  const meta = data.meta[metaKey];
+  catName = meta?.name || catPath[catPath.length - 1] || metaKey;
+  catPosts = data.posts.filter((p) => postMatchesCategory(p, metaKey));
 }
 ---
 
@@ -189,33 +90,37 @@ if (type === 'post') {
     <div class="category-page page-container">
       <div class="category-header">
         <h1 class="category-title section-title">
-          {catName}<span class="title-count-sep"> — </span><span id="posts-count" class="posts-count">共 {catPosts.length} 篇文章</span>
+          {catName}<span class="title-count-sep"> — </span><span class="posts-count">共 {catPosts.length} 篇文章</span>
         </h1>
         <div class="category-header-search">
-          <PostSearch placeholder={`在「${catName}」中搜索…`} categoryPath={buildCategoryUrl(catCategoryPath, categoryMeta, rp)} client:idle />
+          <PostSearch
+            placeholder={`在「${catName}」中搜索…`}
+            categoryPath={buildCategoryUrl(catPath, postRoute)}
+            client:load
+          />
         </div>
       </div>
 
       <div class="posts-with-sidebar">
-        <GlobalSidebar />
+        <GlobalSidebar tree={data.categoryTree} tags={data.tags} />
         <div class="posts-content">
-          <div class="posts-grid" id="posts-grid">
-            {catPosts.map((post: any, i: number) => (
-              <div class="post-card-slot" data-index={i} data-slug={`/${rp}/${post.slug}/`}>
-                <PostCard title={post.frontmatter.title || '无标题'} date={post.frontmatter.date || ''}
-                  description={post.frontmatter.description || ''} image={post.frontmatter.image || undefined}
-                  basePath={getBasePath(post.filePath)}
-                  tags={post.frontmatter.tags || []} pinned={post.frontmatter.pinned || false}
-                  url={`/${rp}/${post.slug}/`} category={post.category} />
+          <div class="posts-grid">
+            {catPosts.map((p) => (
+              <div class="post-card-slot">
+                <PostCard
+                  title={p.title}
+                  date={p.date}
+                  description={p.description}
+                  image={p.image || undefined}
+                  basePath={p.basePath}
+                  tags={p.tags}
+                  pinned={p.pinned}
+                  url={p.url}
+                  category={p.categoryDisplayName || undefined}
+                />
               </div>
             ))}
           </div>
-
-
-          <div class="posts-empty glass" id="posts-empty" hidden>
-            <p>没有找到符合条件的文章</p>
-          </div>
-
           {catPosts.length === 0 && <div class="posts-empty glass"><p>该分类下暂无文章</p></div>}
         </div>
       </div>
@@ -223,110 +128,85 @@ if (type === 'post') {
   </BaseLayout>
 )}
 
-{type === 'post' && (
-  <PostsLayout title={postFm.title} description={postFm.description} headings={postHeadings} breadcrumbs={postBreadcrumbs}>
+{type === 'post' && post && entry && PostContent && (
+  <PostsLayout
+    title={post.title}
+    description={post.description}
+    headings={headings}
+    breadcrumbs={postBreadcrumbs(post, data.meta)}
+    categoryTree={data.categoryTree}
+    sidebarTags={data.tags}
+  >
     <header class="post-header">
       <h1 class="post-title">
-        {postFm.pinned && <span class="post-title-pin"><Icon name="la:thumbtack" class="pin-icon" /></span>}
-        {postFm.title}
+        {post.pinned && <span class="post-title-pin"><Icon name="la:thumbtack" class="pin-icon" /></span>}
+        {post.title}
       </h1>
       <div class="post-meta">
-        {postDateFormatted && (
+        {post.date && (
           <span class="post-meta-item">
             <Icon name="la:calendar" class="meta-icon" />
-            <time datetime={postFm.date}>{postDateFormatted}</time>
+            <time datetime={post.date}>{post.date}</time>
           </span>
         )}
-        {postCategoryPath.length > 0 && (
+        {post.category && (
           <span class="post-meta-item">
             <Icon name="la:layer-group" class="meta-icon" />
-            <a href={buildCategoryUrl(postCategoryPath, categoryMeta, rp)} class="post-meta-link">{postCategoryName}</a>
+            <a href={buildCategoryUrl(post.category.split('/'), postRoute)} class="post-meta-link">{post.categoryDisplayName}</a>
           </span>
         )}
-        {postFm.tags && postFm.tags.length > 0 && (
+        {post.tags.length > 0 && (
           <span class="post-meta-item">
             <Icon name="la:tag" class="meta-icon" />
-            {postFm.tags.map((tag: string, i: number) => (
+            {post.tags.map((tag, i) => (
               <span>
-                <a href={`/${rp}/tag/${encodeURIComponent(tag)}/`} class="post-meta-link">{tag}</a>
-                {i < postFm.tags.length - 1 && <span class="meta-sep">/</span>}
+                <a href={`/${postRoute}/tag/${encodeURIComponent(tag)}/`} class="post-meta-link">{tag}</a>
+                {i < post.tags.length - 1 && <span class="meta-sep">/</span>}
               </span>
             ))}
           </span>
         )}
       </div>
-      {postFm.image && <div class="post-cover"><ImageWrapper src={postFm.image} basePath={getBasePath(filePath)} alt={postFm.title} class="w-full" style="width: 100%; height: auto; display: block;" /></div>}
+      {post.image && <div class="post-cover"><ImageWrapper src={post.image} basePath={post.basePath} alt={post.title} class="w-full" style="width: 100%; height: auto; display: block;" /></div>}
     </header>
-    <div class="markdown-body" set:html={postCompiledHtml}></div>
-    <Repost title={postFm.title} date={postDateFormatted || postFm.date} />
+    <div class="markdown-body">
+      <PostContent />
+    </div>
+    <Repost title={post.title} date={post.date} />
     <PostNav slot="postnav" prev={prevPost} next={nextPost} />
     <Comments slot="comments" />
   </PostsLayout>
 )}
 
-<!-- 文章列表搜索脚本（无 #posts-grid 时自动跳过，文章详情页不受影响） -->
 <style>
-  .posts-with-sidebar {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    min-width: 0;
-  }
-
-  .posts-content {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 1000px;
+  /* 分类页空态（复用列表共享样式，仅此页保留） */
+  .posts-empty {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255, 255, 255, 0.45);
+    border-radius: var(--radius);
   }
 
-  .category-page {
-    width: 100%;
-    max-width: 1200px;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  .category-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-  .category-title { font-size: 1.6rem; }
-  .category-header-search { width: min(360px, 100%); }
-
-  .posts-with-sidebar {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    min-width: 0;
-  }
-
-  .posts-content {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  @media (max-width: 768px) {
-    .posts-with-sidebar { gap: 0; flex-wrap: wrap; }
-    .posts-with-sidebar > :global(.global-sidebar) { display: none; }
-  }
-  @media (max-width: 768px) {
-    .category-header { flex-direction: column; align-items: stretch; gap: 12px; }
-    .category-header-search { width: 100%; }
-    .category-title { font-size: 1.35rem; text-align: center; justify-content: center; }
-  }
-  /* .posts-grid / .posts-empty 等共享样式见 assets/css/posts-listing.css */
+  /* ---- 文章详情页样式 ---- */
   .post-header { margin-bottom: 24px; }
   .post-title { font-size: 2rem; font-weight: 800; color: #fff; line-height: 1.3; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px; }
   .post-title-pin { display: inline-flex; flex-shrink: 0; }
   .post-title-pin .pin-icon { width: 22px; height: 22px; }
   .post-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
-  .post-meta-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; color: rgba(255,255,255,0.5); }
+  .post-meta-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.5); }
   .meta-icon { width: 15px; height: 15px; opacity: 0.6; flex-shrink: 0; position: relative; top: -1px; }
-  .post-meta-link { color: rgba(255,255,255,0.65); text-decoration: none; transition: color 0.2s; }
+  .post-meta-link { color: rgba(255, 255, 255, 0.65); text-decoration: none; transition: color 0.2s; }
   .post-meta-link::before { display: none; }
   .post-meta-link:hover { color: #fff; }
-  .meta-sep { margin: 0 2px; color: rgba(255,255,255,0.3); }
+  .meta-sep { margin: 0 2px; color: rgba(255, 255, 255, 0.3); }
   .post-cover { margin-top: 20px; border-radius: 8px; overflow: hidden; }
   .post-cover img { width: 100%; height: auto; display: block; }
-  @media (max-width: 768px) { .posts-grid { grid-template-columns: 1fr; gap: 16px; } .post-title { font-size: 1.5rem; } }
+
+  @media (max-width: 768px) {
+    .post-title { font-size: 1.5rem; }
+  }
 </style>

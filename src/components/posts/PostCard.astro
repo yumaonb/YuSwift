@@ -5,6 +5,7 @@ import ImageWrapper from './ImageWrapper.astro';
 
 interface Props {
   title: string;
+  /** 已格式化的日期（YYYY-MM-DD）或可解析的日期串 */
   date: string;
   description?: string;
   image?: string;
@@ -12,15 +13,11 @@ interface Props {
   tags?: string[];
   pinned?: boolean;
   url: string;
+  /** 分类显示名（如「CSS」），展示在卡片上 */
   category?: string;
 }
 
 const { title, date, description, image, basePath = "/", tags = [], pinned = false, url, category } = Astro.props;
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 const hasCover = !!image;
 ---
@@ -39,7 +36,7 @@ const hasCover = !!image;
     </div>
 
     <div class="post-card-sub">
-      <time class="post-card-date" datetime={date}>{formatDate(date)}</time>
+      <time class="post-card-date" datetime={date}>{date}</time>
       {category && (
         <span class="post-card-category">{category}</span>
       )}

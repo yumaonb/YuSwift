@@ -4,7 +4,7 @@ import BaseLayout from './BaseLayout.astro';
 import GlobalSidebar from '../components/posts/GlobalSidebar.astro';
 import TableOfContents from '../components/posts/TableOfContents.astro';
 import Breadcrumb from '../components/posts/Breadcrumb.astro';
-import '../assets/css/markdown.css';
+import type { BreadcrumbItem, CategoryTreeNode } from '../lib/category';
 
 interface Heading {
   depth: number;
@@ -12,27 +12,25 @@ interface Heading {
   text: string;
 }
 
-interface BreadcrumbItem {
-  label: string;
-  href?: string;
-  icon?: string;
-}
-
 interface Props {
   title: string;
   description?: string;
   headings: Heading[];
   breadcrumbs: BreadcrumbItem[];
+  /** 侧栏分类树（来自 loadBlogData()） */
+  categoryTree: CategoryTreeNode[];
+  /** 侧栏标签计数（来自 loadBlogData()） */
+  sidebarTags: { name: string; count: number }[];
 }
 
-const { title, description, headings, breadcrumbs } = Astro.props;
+const { title, description, headings, breadcrumbs, categoryTree, sidebarTags } = Astro.props;
 const hasToc = headings && headings.length > 0;
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="posts-with-sidebar">
     <div class="posts-sidebar-wrap">
-      <GlobalSidebar>
+      <GlobalSidebar tree={categoryTree} tags={sidebarTags}>
         <Breadcrumb items={breadcrumbs} slot="top" />
       </GlobalSidebar>
     </div>
@@ -61,24 +59,10 @@ const hasToc = headings && headings.length > 0;
 </BaseLayout>
 
 <style>
-  /* 左侧边栏 + 内容列 */
+  /* 整行容器：与列表/分类页一致，限制最大宽度并居中（main.hero 的
+     justify-content: center + width:100% 即可让该容器居中，不会贴左） */
   .posts-with-sidebar {
-    width: 100%;
     max-width: 1200px;
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    min-width: 0;
-  }
-
-  .posts-sidebar-wrap {
-    width: 260px;
-    flex-shrink: 0;
-  }
-
-  .posts-content {
-    flex: 1 1 auto;
-    min-width: 0;
   }
 
   .post-layout {
@@ -101,6 +85,14 @@ const hasToc = headings && headings.length > 0;
   .posts-breadcrumb {
     display: none;
     margin-bottom: 16px;
+  }
+
+  .posts-sidebar-wrap {
+    /* 让侧栏拉伸到正文列高度：wrapper 对齐到行高（覆盖容器 align-items:flex-start），
+       内部 display:flex 使 .global-sidebar 的 align-self:stretch 生效，
+       .sidebar-filter 的 position:sticky 才有滚动行程（与列表页直接子元素一致） */
+    align-self: stretch;
+    display: flex;
   }
 
   .post-content-inner {

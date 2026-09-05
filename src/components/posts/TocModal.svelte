@@ -1,42 +1,22 @@
-<!-- TocModal.svelte — 文章目录悬浮按钮 + 抽屉弹窗 -->
+<!-- TocModal.svelte — 文章目录抽屉弹窗（item7 后为纯抽屉）
+// 悬浮入口按钮已并入 SideWidgets.svelte（#toc-fab，同一 .back-to-widget 结构），
+// 本组件只负责抽屉本身：监听 #toc-fab 点击，把 .toc-nav 从文章侧栏挪进抽屉展示。
+-->
 <script>
   import { onMount } from 'svelte';
-  import { subscribeScroll } from '../../assets/js/scroll-manager.js';
 
   let isOpen = $state(false);
   let lastFocus = null;
   let hosted = null;
   let hostHome = null;
   let navHeader = null;
-  let lastHiddenAt = 0;
-  let settleTimer = null;
-  let isVisible = $state(false);
-  let isUnavailable = $state(false);
-  let isNavigating = false;
-  let fabEl;
   let modalEl;
   let bodyEl;
 
-  function updateVisibility() {
-    if (isNavigating) return;
-    isVisible = window.scrollY > 100;
-  }
-
-  function syncAvailability() {
-    const hasToc = !!document.querySelector('.toc-nav .toc-link');
-    const wantUnavailable = !hasToc;
-
-    const settled = !isVisible && Date.now() - lastHiddenAt > 300;
-    if (!settled) {
-      if (!settleTimer) {
-        settleTimer = setTimeout(() => {
-          settleTimer = null;
-          syncAvailability();
-        }, 400);
-      }
-      return;
-    }
-    isUnavailable = wantUnavailable;
+  /** 让入口按钮的 aria-expanded 跟随抽屉开关 */
+  function setFabExpanded(v) {
+    const fab = document.getElementById('toc-fab');
+    if (fab) fab.setAttribute('aria-expanded', v ? 'true' : 'false');
   }
 
   function open() {
@@ -44,6 +24,7 @@
     const nav = document.querySelector('.toc-nav');
     if (!nav) return;
     isOpen = true;
+    setFabExpanded(true);
     lastFocus = document.activeElement;
     hostHome = nav.parentNode;
     hosted = nav;
@@ -60,6 +41,7 @@
   function close() {
     if (!isOpen) return;
     isOpen = false;
+    setFabExpanded(false);
     document.body.style.overflow = '';
     if (hosted && hostHome && hostHome.isConnected) {
       hostHome.appendChild(hosted);
@@ -71,12 +53,6 @@
     lastFocus?.focus?.();
   }
 
-  function onScroll() {
-    const wasShown = isVisible;
-    updateVisibility();
-    if (wasShown && !isVisible) lastHiddenAt = Date.now();
-  }
-
   function onKeydown(e) {
     if (e.key === 'Escape' && isOpen) close();
   }
@@ -86,14 +62,17 @@
     if (e.target?.closest?.('.toc-link')) close();
   }
 
+  /** 入口按钮在 SideWidgets 容器内，容器级事件委托即可（与挂载顺序无关） */
+  function onWidgetsClick(e) {
+    if (e.target?.closest?.('#toc-fab')) open();
+  }
+
   onMount(() => {
     // 挂到 body 防止被 .side-widgets 的 fixed 层叠上下文压住
     if (modalEl) document.body.appendChild(modalEl);
 
-    syncAvailability();
-    updateVisibility();
-
-    const unsub = subscribeScroll(() => onScroll());
+    const widgets = document.getElementById('side-widgets');
+    widgets?.addEventListener('click', onWidgetsClick);
 
     // 复用 NavBar 的共享 matchMedia 监听器
     function onEnterDesktop() { if (isOpen) close(); }
@@ -105,45 +84,20 @@
       });
     }
 
-    // swup 事件
+    // swup 切页时抽屉必然要关（切走前先关闭）
     function onVisitStart() {
-      isNavigating = true;
       if (isOpen) close();
     }
-    function onContentReplace() {
-      isNavigating = false;
-      syncAvailability();
-      updateVisibility();
-    }
     document.addEventListener('swup:visit:start', onVisitStart);
-    document.addEventListener('swup:content:replace', onContentReplace);
 
     return () => {
-      unsub();
+      widgets?.removeEventListener('click', onWidgetsClick);
       document.removeEventListener('swup:visit:start', onVisitStart);
-      document.removeEventListener('swup:content:replace', onContentReplace);
-      if (settleTimer) clearTimeout(settleTimer);
     };
   });
 </script>
 
 <svelte:window onkeydown={onKeydown} />
-
-<button
-  bind:this={fabEl}
-  class="back-to-widget"
-  class:visible={isVisible}
-  class:unavailable={isUnavailable}
-  id="toc-fab"
-  aria-label="文章目录"
-  aria-haspopup="dialog"
-  aria-expanded={isOpen}
-  onclick={open}
->
-  <svg class="back-to-widget-icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
-    <path d="M4 5v6h6V5zm2 2h2v2H6zm6 0v2h15V7zm-8 6v6h6v-6zm2 2h2v2H6zm6 0v2h15v-2zm-8 6v6h6v-6zm2 2h2v2H6zm6 0v2h15v-2z"/>
-  </svg>
-</button>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
@@ -175,10 +129,6 @@
 </div>
 
 <style>
-  @media (min-width: 769px) {
-    #toc-fab { display: none; }
-  }
-
   .toc-modal {
     position: fixed;
     inset: 0;
