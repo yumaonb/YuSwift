@@ -61,7 +61,7 @@ const hasCover = !!image;
   <!-- 封面图片区域（右侧） -->
   {hasCover && (
     <div class="post-card-cover">
-      <ImageWrapper src={image!} basePath={basePath} alt={title} class="w-full h-full object-cover" />
+      <ImageWrapper src={image!} basePath={basePath} alt={title} class="w-full object-contain" />
     </div>
   )}
 </a>
@@ -73,6 +73,7 @@ const hasCover = !!image;
     align-items: stretch;
     border-radius: var(--radius);
     overflow: hidden;
+    max-height: 204px;
     transition: filter 0.3s ease, box-shadow 0.3s ease;
     text-decoration: none;
     color: inherit;
@@ -96,6 +97,7 @@ const hasCover = !!image;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: hidden;
   }
 
   .post-card-meta {
@@ -185,20 +187,18 @@ const hasCover = !!image;
     border-radius: 4px;
   }
 
-  /* 封面图片 — 右侧 flex 区域 */
+  /* 封面图片 — 右侧固定宽度区域 */
   .post-card-cover {
     flex-shrink: 0;
-    width: 28%;
-    min-width: 160px;
-    max-width: 280px;
+    width: 200px;
     padding: 12px 12px 12px 0;
     display: none;
   }
 
   .post-card-cover img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     border-radius: 12px;
     display: block;
     transition: transform 0.3s ease;
@@ -216,14 +216,14 @@ const hasCover = !!image;
     /* 手机端：封面整宽在上，文本在下 */
     .post-card {
       flex-direction: column;
+      max-height: none;
     }
 
     .post-card-cover {
       width: 100%;
-      min-width: 0;
-      max-width: none;
-      padding: 0;
+      height: auto;
       aspect-ratio: 16 / 9;
+      padding: 0;
       display: block;
     }
 

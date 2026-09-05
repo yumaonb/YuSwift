@@ -128,9 +128,11 @@ let postBreadcrumbs: { label: string; href?: string }[] = [];
 let postDateFormatted = '';
 let prevPost: { title: string; url: string } | null = null;
 let nextPost: { title: string; url: string } | null = null;
+let filePath = '';
+let slug = '';
 
 if (type === 'post') {
-  const { filePath, slug } = Astro.props;
+  ({ filePath, slug } = Astro.props);
   const allPosts = import.meta.glob<PostModule>('../../content/posts/**/*.md', { eager: true });
   const post = allPosts[filePath];
 
@@ -253,7 +255,7 @@ if (type === 'post') {
           </span>
         )}
       </div>
-      {postFm.image && <div class="post-cover"><ImageWrapper src={postFm.image} basePath={getBasePath(filePath)} alt={postFm.title} class="w-full" /></div>}
+      {postFm.image && <div class="post-cover"><ImageWrapper src={postFm.image} basePath={getBasePath(filePath)} alt={postFm.title} class="w-full" style="width: 100%; height: auto; display: block;" /></div>}
     </header>
     <div class="markdown-body" set:html={postCompiledHtml}></div>
     <Repost title={postFm.title} date={postDateFormatted || postFm.date} />

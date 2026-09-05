@@ -180,8 +180,17 @@
 /* ---- 图片 ---- */
 .markdown-body img {
   max-width: 100%;
+  height: auto !important;
+  width: auto !important;
   border-radius: 8px;
   margin: 1em 0;
+}
+
+/* 清除 Astro Image 组件可能添加的内联尺寸 */
+.markdown-body img[width],
+.markdown-body img[height] {
+  width: auto !important;
+  height: auto !important;
 }
 
 /* ---- 脚注 ---- */
